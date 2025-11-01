@@ -1,0 +1,178 @@
+System message (set as agent system prompt)
+
+You are GPT-5 Thinking mini, a capable code generator and mobile engineer. Produce production-quality Swift/SwiftUI code, with attention to safety and platform rules. Output only the requested files and explanations (see “Deliverables” below). Do not run or compile code yourself — provide code and exact instructions an engineer can follow to build & run the app in Xcode. Prioritize clarity, modularity, and thorough inline comments.
+
+User message (the task; paste this to the agent)
+
+Goal: Create a small iPhone app (Swift / SwiftUI) that helps a small sailboat helmsman decide when to tack or jibe. Generate a fully structured Xcode project (but keep files plain text so they work in VS Code for editing). In the project include unit tests and a README with build/signing steps.
+
+High-level behavior:
+
+Let the user set the True Wind (two options):
+
+Enter True Wind Direction (TWD) as an absolute heading in degrees (0–359, 0 = North).
+
+Or optionally enter True Wind Angle (TWA) relative to boat bow; the app should convert TWA → TWD using the current boat heading.
+Provide a simple toggle so the user can choose which input mode they want.
+
+Starting waypoint:
+
+When the user taps a clearly labeled button (“Set Start Waypoint”), capture the current GPS location (latitude & longitude) and store it as the start waypoint.
+
+The button should be obvious and provide short haptic + visual confirmation when saved.
+
+Live data:
+
+Continuously subscribe to location updates (CLLocationManager) to get:
+
+Speed over ground (SOG) in m/s or knots (display both).
+
+Course / heading (use CLHeading for device heading if available; fall back to courseOverGround).
+
+Update at reasonable intervals for navigation (e.g., 1–2s for UI; respect battery and user permissions).
+
+VMG calculation:
+
+Compute VMG relative to the wind as:
+VMG = SOG * cos(Δ), where Δ is the angle difference between boat heading and true wind direction (in radians). The sign of VMG indicates progress toward (positive) or away from (negative) the wind (upwind vs downwind). Use smallest signed angle difference (-180..+180). Show the formula and current numeric VMG in the UI. (Note: VMG definition & guidance: velocity made good = speed component in wind direction.) 
+Wikipedia
+
+Decide tack/jibe every 30 seconds:
+
+Every 30 seconds evaluate whether the user should tack (if sailing upwind / VMG positive) or jibe (if sailing downwind / VMG negative).
+
+Use this heuristic:
+
+Compute current VMG.
+
+Compute the expected VMG on the opposite tack/jibe by mirroring heading across the wind (i.e., altHeading = normalize(2*TWD - heading)), then project altVMG = SOG * cos(angleBetween(altHeading, TWD)).
+
+If altVMG > currentVMG + threshold (threshold default 0.1 m/s; user adjustable in settings), then recommend a tack/jibe now.
+
+If no significant improvement, no alert.
+
+When the agent recommends a maneuver, issue two short vibrations and a clear, short on-screen message: “Tack now →” or “Jibe now ←”, with an arrow indicating which side. Use Core Haptics if available; otherwise use UIFeedbackGenerator fallback. Follow Apple haptics best practices. 
+Apple Developer
++1
+
+UI / UX requirements:
+
+SwiftUI based, single-screen main UI with:
+
+top area: current SOG, heading, COG, VMG, TWD/TWA input area.
+
+center: map (MapKit) showing current position and the saved start waypoint with bearing line to waypoint.
+
+controls: “Set Start Waypoint” button, input mode toggle (TWD/TWA), “Start/Stop VMG Alerts” toggle, settings icon for threshold & 30s interval (allow adjust but default 30s).
+
+clear accessibility labels, large readable fonts, and adaptive color scheme.
+
+When the start waypoint is set, compute bearing to waypoint and display distance and bearing.
+
+Permissions & privacy:
+
+Implement runtime permission requests for Location When In Use and heading. Provide user-facing reason texts in Info.plist keys.
+
+Explain in README any privacy implications and advise the user they must enable location for the app to work.
+
+Implementation details:
+
+Use CLLocationManager for location & heading updates.
+
+Use MapKit for map view and annotations.
+
+Use CoreHaptics for precise vibration (two short pulses separated by ~200 ms) with UIFeedbackGenerator fallback for older devices.
+
+Provide a small VMGCalculator Swift struct with pure functions for:
+
+angle normalization
+
+bearing calculation (from lat/lon)
+
+VMG calculation
+
+predicted altVMG function used for decision making
+
+Provide unit tests for the VMG math (at least 4 cases: upwind, downwind, perpendicular, symmetric tack improvement).
+
+Deliverables (agent should return these artifacts in a single response, structured):
+
+A root README.md with:
+
+project overview, math explanation, build & run instructions (note: building & running on a device requires Xcode and signing).
+
+Info.plist keys to add and why.
+
+a troubleshooting section.
+
+A complete Swift/Xcode project tree (list files + full contents for each file). Minimum required files:
+
+Package.swift (if using SwiftPM) or Project structure description plus the Xcode project file instructions (OK to provide file list and contents).
+
+Sources/App/MainApp.swift
+
+Sources/App/ContentView.swift
+
+Sources/App/VMGCalculator.swift
+
+Sources/App/LocationManager.swift
+
+Sources/App/HapticsManager.swift
+
+Sources/App/MapView.swift
+
+Tests/VMGTests.swift
+
+README.md
+
+Info.plist snippet keys and suggested strings.
+
+All Swift files must be well commented and formatted, with doc comments for public functions.
+
+Provide a small example run log showing sample numeric values over one 90s window (simulated GPS+heading) and the agent’s every-30s decision (so we can see the app logic).
+
+Constraints & notes:
+
+The agent must produce code compatible with modern iOS (iOS 15+) and Swift 5.8+. Use SwiftUI and Combine where helpful.
+
+The agent MUST include explicit instructions: “To build and run in Xcode, open <project>.xcodeproj and set a signing team; building in VS Code is for editing only — you must use Xcode to run on device/simulator.”
+
+Do not call any external paid APIs for the core logic. (You may document how an optional cloud/assistant feature could be added, but it must be separate.)
+
+Provide one small optional extension: a “voice announce” using AVSpeechSynthesizer when recommending tack/jibe (user toggle to enable).
+
+Acceptance criteria (what I will check):
+
+The project builds (no obvious missing symbols), at least the VMGCalculator unit tests pass conceptually.
+
+The 30s evaluation + double vibration behavior is clearly implemented and comment-documented.
+
+README explains the math and how VMG is computed and why sign indicates upwind/downwind.
+
+Haptics fallback implemented and explained.
+
+Prompt metadata for the agent (instructions on how to respond)
+
+First output: show a short project file tree.
+
+Then include complete contents of each file (one file per code block, with path in a single-line comment header).
+
+After code, include README.md content and the simulated example run log.
+
+After everything, include a short checklist confirming acceptance criteria with pointers to where each criterion is implemented (file & function names).
+
+Keep each Swift file under a single code block and add thorough inline comments.
+
+If anything cannot be implemented exactly (e.g., Core Haptics cannot be simulated), explain clearly and give a robust fallback (and tests for fallback).
+
+Extra helpful hints for the agent developer
+
+Provide the VMG math as a tiny diagram and the exact Swift implementation (angle normalization function, degrees ↔ radians).
+
+Use meters/sec internally but display knots as user option (1 knot = 0.514444 m/s).
+
+For the two-pulse vibration: prefer a CoreHaptics pattern with two transients 0s and 0.2s, fallback to two UINotificationFeedbackGenerator().notificationOccurred(.success) calls with DispatchQueue.main.asyncAfter spacing.
+
+In LocationManager, expose a @Published struct with sog, heading, coordinate, and timestamp so the UI can react easily.
+
+Keep the default preferred tack angle at 45° (configurable in settings).
