@@ -87,3 +87,4 @@ jobs:
 # - This workflow assumes you have an Xcode project or workspace and a scheme named 'SailTact' or you set secrets XCODE_WORKSPACE/XCODE_PROJECT/XCODE_SCHEME.
 # - To sign automatically you need to set repository secrets: P12_BASE64 (base64 of your code-signing .p12), P12_PASSWORD, PROFILE_BASE64 (base64 of provisioning profile).
 # - Configure secrets in GitHub: Settings -> Secrets -> Actions. Add BUNDLE_ID, P12_BASE64, P12_PASSWORD, PROFILE_BASE64, XCODE_WORKSPACE or XCODE_PROJECT, and XCODE_SCHEME if needed.
+# - For detailed instructions on creating certificates and profiles, see SIGNING.md
