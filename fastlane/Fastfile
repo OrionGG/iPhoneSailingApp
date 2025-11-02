@@ -1,4 +1,8 @@
 default_platform(:ios)
+# disable analytics messages
+skip_docs
+opt_out_usage
+allow_fallback_to_no_signing true
 
 platform :ios do
   desc "CI lane: import certs/profiles from env, build and export .ipa"
@@ -12,47 +16,6 @@ platform :ios do
 
     sh("mkdir -p #{output_dir}")
 
-    # Import P12 if provided as base64 in env var P12_BASE64
-    if ENV['P12_BASE64'] && ENV['P12_PASSWORD']
-      UI.message("Detected P12 in environment; writing and importing")
-      cert_dir = 'certs'
-      sh("mkdir -p #{cert_dir}")
-      p12_path = File.expand_path(File.join(cert_dir, 'codesign.p12'))
-      File.open(p12_path, 'wb') do |f|
-        f.write(Base64.decode64(ENV['P12_BASE64']))
-      end
-      unless File.exist?(p12_path) && File.size(p12_path) > 0
-        UI.user_error!("Failed to write P12 to #{p12_path}; P12_BASE64 may be invalid or decoding failed")
-      end
-      # import_certificate expects :certificate_path and :certificate_password
-      # On macOS runners the login keychain path is usually at ~/Library/Keychains/login.keychain-db
-      keychain_path = File.join(Dir.home, 'Library/Keychains/login.keychain-db')
-      import_certificate(
-        certificate_path: p12_path,
-        certificate_password: ENV['P12_PASSWORD'],
-        keychain_path: keychain_path
-      )
-    else
-      UI.message("No P12 provided via P12_BASE64 / P12_PASSWORD; skipping import")
-    end
-
-    # Install provisioning profile if provided
-    if ENV['PROFILE_BASE64']
-      UI.message("Detected provisioning profile in environment; writing and installing")
-      prof_dir = 'certs'
-      sh("mkdir -p #{prof_dir}")
-      profile_path = File.expand_path(File.join(prof_dir, 'profile.mobileprovision'))
-      File.open(profile_path, 'wb') do |f|
-        f.write(Base64.decode64(ENV['PROFILE_BASE64']))
-      end
-      unless File.exist?(profile_path) && File.size(profile_path) > 0
-        UI.user_error!("Failed to write provisioning profile to #{profile_path}; PROFILE_BASE64 may be invalid")
-      end
-      install_provisioning_profile(path: profile_path)
-    else
-      UI.message("No provisioning profile provided via PROFILE_BASE64; skipping")
-    end
-
     options = {
       scheme: scheme,
       export_method: export_method,
@@ -61,7 +24,13 @@ platform :ios do
     }
     options[:workspace] = workspace if workspace && workspace.length > 0
     options[:project] = project if project && project.length > 0
-    options[:export_options] = 'ExportOptions.plist' if File.exist?('ExportOptions.plist')
+    # Look for ExportOptions.plist in repo root or fastlane dir
+    if File.exist?('../ExportOptions.plist')
+      options[:export_options] = '../ExportOptions.plist'
+    elsif File.exist?('ExportOptions.plist')
+      options[:export_options] = 'ExportOptions.plist'
+    end
+    UI.message("Using options: #{options.inspect}")
 
     build_app(options)
 

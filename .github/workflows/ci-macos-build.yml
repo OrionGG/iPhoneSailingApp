@@ -19,6 +19,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Import code signing cert (p12)
+        if: ${{ secrets.P12_BASE64 && secrets.P12_PASSWORD }}
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-base64: ${{ secrets.P12_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+
+      - name: Import provisioning profile
+        if: ${{ secrets.PROFILE_BASE64 }}
+        uses: apple-actions/import-provisioning-profile@v1
+        with:
+          provisioning-profile-base64: ${{ secrets.PROFILE_BASE64 }}
+
       - name: Set up Ruby (fastlane)
         uses: ruby/setup-ruby@v1
         with:
@@ -42,9 +55,6 @@ jobs:
       - name: Run fastlane CI lane
         env:
           # Required secrets expected to be configured in GitHub
-          P12_BASE64: ${{ secrets.P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          PROFILE_BASE64: ${{ secrets.PROFILE_BASE64 }}
           BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
           XCODE_WORKSPACE: ${{ secrets.XCODE_WORKSPACE }}
           XCODE_PROJECT: ${{ secrets.XCODE_PROJECT }}
@@ -52,7 +62,6 @@ jobs:
           EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }}
         run: |
           set -o pipefail
-          # If fastlane/Gemfile exists, run fastlane from the fastlane directory using bundle exec
           if [ -f fastlane/Gemfile ]; then
             echo "Running fastlane via bundle exec in fastlane/"
             pushd fastlane >/dev/null
@@ -67,12 +76,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SailTact-ipa
-          path: out/*.ipa
+          path: fastlane/out/*.ipa
 
       - name: Print build summary
         run: |
-          echo "Artifacts in out/"
-          ls -la out || true
+          echo "Artifacts in fastlane/out/"
+          ls -la fastlane/out || true
 
 # Notes:
 # - This workflow assumes you have an Xcode project or workspace and a scheme named 'SailTact' or you set secrets XCODE_WORKSPACE/XCODE_PROJECT/XCODE_SCHEME.
