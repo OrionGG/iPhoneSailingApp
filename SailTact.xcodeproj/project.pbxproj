@@ -1,0 +1,161 @@
+// !UTF8
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 55;
+	objects = {
+		/* Begin PBXProject section */
+		1D6058900D05DD3D006BFB54 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1440;
+			};
+			buildConfigurationList = 1D6058920D05DD3D006BFB54 /* Build configuration list for PBXProject */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 1D60588A0D05DD3D006BFB54;
+			productRefGroup = 1D60588B0D05DD3D006BFB54 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			runOnlyForDeploymentPostprocessing = 0;
+			targets = (
+				1D6058930D05DD3D006BFB54 /* SailTact */,
+			);
+		};
+		/* End PBXProject section */
+
+		/* Begin PBXGroup section */
+		1D60588A0D05DD3D006BFB54 = {
+			isa = PBXGroup;
+			children = (
+				1D60588C0D05DD3D006BFB54 /* Sources */,
+				1D60588B0D05DD3D006BFB54 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1D60588B0D05DD3D006BFB54 = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1D60588C0D05DD3D006BFB54 = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		/* End PBXGroup section */
+
+		/* Begin PBXNativeTarget section */
+		1D6058930D05DD3D006BFB54 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1D6058940D05DD3D006BFB54 /* Build configuration list for PBXNativeTarget "SailTact" */;
+			buildPhases = (
+				1D6058950D05DD3D006BFB54 /* Sources */,
+				1D6058960D05DD3D006BFB54 /* Frameworks */,
+				1D6058970D05DD3D006BFB54 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SailTact;
+			productName = SailTact;
+			productReference = 1D6058980D05DD3D006BFB54 /* SailTact.app */;
+			productType = "com.apple.product-type.application";
+		};
+		/* End PBXNativeTarget section */
+
+		/* Begin PBXSourcesBuildPhase section */
+		1D6058950D05DD3D006BFB54 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXSourcesBuildPhase section */
+
+		/* Begin PBXFrameworksBuildPhase section */
+		1D6058960D05DD3D006BFB54 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXFrameworksBuildPhase section */
+
+		/* Begin PBXResourcesBuildPhase section */
+		1D6058970D05DD3D006BFB54 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		/* End PBXResourcesBuildPhase section */
+
+		/* Begin PBXFileReference section */
+		1D6058980D05DD3D006BFB54 = {
+			isa = PBXFileReference;
+			lastKnownFileType = application;
+			name = SailTact.app;
+			path = "SailTact.app";
+			sourceTree = "BUILT_PRODUCTS_DIR";
+		};
+		/* End PBXFileReference section */
+
+		/* Begin XCBuildConfiguration section */
+		1D6058920D05DD3D006BFB54 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		1D6058940D05DD3D006BFB54 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = "Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.SailTact";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		/* End XCBuildConfiguration section */
+
+		/* Begin XCConfigurationList section */
+		1D6058910D05DD3D006BFB54 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1D6058920D05DD3D006BFB54,
+				1D6058940D05DD3D006BFB54,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1D6058940D05DD3D006BFB54 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1D6058920D05DD3D006BFB54,
+				1D6058940D05DD3D006BFB54,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		/* End XCConfigurationList section */
+	};
+
+	rootObject = 1D6058900D05DD3D006BFB54 /* Project object */;
+}

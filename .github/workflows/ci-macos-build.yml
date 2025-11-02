@@ -1,0 +1,102 @@
+name: iOS CI - Build Archive (.ipa)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and export .ipa (macos)
+    runs-on: macos-latest
+    env:
+      # You can set these via GitHub secrets and reference them below
+      BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+      EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }} # development | ad-hoc | app-store | enterprise
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby (fastlane optional)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+
+      # Import certificate (P12) into the macOS runner keychain.
+      # Provide P12_BASE64 and P12_PASSWORD as repository secrets (see README below).
+      - name: Import code signing cert (p12)
+        if: ${{ secrets.P12_BASE64 && secrets.P12_PASSWORD }}
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-base64: ${{ secrets.P12_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+
+      # Import provisioning profile
+      - name: Import provisioning profile
+        if: ${{ secrets.PROFILE_BASE64 }}
+        uses: apple-actions/import-provisioning-profile@v1
+        with:
+          provisioning-profile-base64: ${{ secrets.PROFILE_BASE64 }}
+
+      - name: Prepare ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${{ env.EXPORT_METHOD || 'development' }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>stripSwiftSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build Xcode archive
+        env:
+          # Provide WORKSPACE/PROJECT/Scheme via secrets or edit below
+          WORKSPACE: ${{ secrets.XCODE_WORKSPACE }}
+          PROJECT: ${{ secrets.XCODE_PROJECT }}
+          SCHEME: ${{ secrets.XCODE_SCHEME || 'SailTact' }}
+        run: |
+          set -o pipefail
+          mkdir -p build
+          # NOTE: Modify the xcodebuild command below if you use an .xcworkspace or .xcodeproj
+          if [ -n "$WORKSPACE" ]; then
+            echo "Building workspace: $WORKSPACE scheme: $SCHEME"
+            xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
+          elif [ -n "$PROJECT" ]; then
+            echo "Building project: $PROJECT scheme: $SCHEME"
+            xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
+          else
+            echo "No WORKSPACE or PROJECT provided. Attempting to build scheme '$SCHEME' via xcodebuild -scheme"
+            xcodebuild -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
+          fi
+
+      - name: Export .ipa
+        run: |
+          mkdir -p out
+          xcodebuild -exportArchive -archivePath "$PWD/build/${{ secrets.XCODE_SCHEME || 'SailTact' }}.xcarchive" -exportOptionsPlist ExportOptions.plist -exportPath "$PWD/out" | xcpretty || true
+
+      - name: Upload artifact (.ipa)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SailTact-ipa
+          path: out/*.ipa
+
+      - name: Print build summary
+        run: |
+          echo "Artifacts in out/"
+          ls -la out || true
+
+# Notes:
+# - This workflow assumes you have an Xcode project or workspace and a scheme named 'SailTact' or you set secrets XCODE_WORKSPACE/XCODE_PROJECT/XCODE_SCHEME.
+# - To sign automatically you need to set repository secrets: P12_BASE64 (base64 of your code-signing .p12), P12_PASSWORD, PROFILE_BASE64 (base64 of provisioning profile).
+# - Configure secrets in GitHub: Settings -> Secrets -> Actions. Add BUNDLE_ID, P12_BASE64, P12_PASSWORD, PROFILE_BASE64, XCODE_WORKSPACE or XCODE_PROJECT, and XCODE_SCHEME if needed.
