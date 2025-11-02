@@ -28,9 +28,14 @@ jobs:
         run: |
           gem install bundler --conservative
           bundle config set --local path vendor/bundle || true
+          # If a fastlane/Gemfile exists, run bundle install from that directory
           if [ -f fastlane/Gemfile ]; then
+            echo "Found fastlane/Gemfile — installing from fastlane/"
+            pushd fastlane >/dev/null
             bundle install --jobs 4 --retry 3
+            popd >/dev/null
           else
+            echo "No fastlane/Gemfile found — installing fastlane system-wide"
             gem install fastlane -v "latest"
           fi
 
@@ -47,9 +52,14 @@ jobs:
           EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }}
         run: |
           set -o pipefail
-          if [ -f Gemfile ]; then
+          # If fastlane/Gemfile exists, run fastlane from the fastlane directory using bundle exec
+          if [ -f fastlane/Gemfile ]; then
+            echo "Running fastlane via bundle exec in fastlane/"
+            pushd fastlane >/dev/null
             bundle exec fastlane ci
+            popd >/dev/null
           else
+            echo "Running fastlane directly"
             fastlane ci
           fi
 
