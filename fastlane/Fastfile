@@ -1,0 +1,57 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "CI lane: import certs/profiles from env, build and export .ipa"
+  lane :ci do
+    require 'base64'
+    scheme = ENV['XCODE_SCHEME'] || 'SailTact'
+    workspace = ENV['XCODE_WORKSPACE']
+    project = ENV['XCODE_PROJECT']
+    export_method = ENV['EXPORT_METHOD'] || 'development'
+    output_dir = 'out'
+
+    sh("mkdir -p #{output_dir}")
+
+    # Import P12 if provided as base64 in env var P12_BASE64
+    if ENV['P12_BASE64'] && ENV['P12_PASSWORD']
+      UI.message("Detected P12 in environment; writing and importing")
+      cert_dir = 'certs'
+      sh("mkdir -p #{cert_dir}")
+      p12_path = File.join(cert_dir, 'codesign.p12')
+      File.open(p12_path, 'wb') do |f|
+        f.write(Base64.decode64(ENV['P12_BASE64']))
+      end
+      import_certificate(p12_path: p12_path, p12_password: ENV['P12_PASSWORD'])
+    else
+      UI.message("No P12 provided via P12_BASE64 / P12_PASSWORD; skipping import")
+    end
+
+    # Install provisioning profile if provided
+    if ENV['PROFILE_BASE64']
+      UI.message("Detected provisioning profile in environment; writing and installing")
+      prof_dir = 'certs'
+      sh("mkdir -p #{prof_dir}")
+      profile_path = File.join(prof_dir, 'profile.mobileprovision')
+      File.open(profile_path, 'wb') do |f|
+        f.write(Base64.decode64(ENV['PROFILE_BASE64']))
+      end
+      install_provisioning_profile(path: profile_path)
+    else
+      UI.message("No provisioning profile provided via PROFILE_BASE64; skipping")
+    end
+
+    options = {
+      scheme: scheme,
+      export_method: export_method,
+      output_directory: output_dir,
+      output_name: scheme
+    }
+    options[:workspace] = workspace if workspace && workspace.length > 0
+    options[:project] = project if project && project.length > 0
+    options[:export_options] = 'ExportOptions.plist' if File.exist?('ExportOptions.plist')
+
+    build_app(options)
+
+    UI.message("Build complete. IPA should be in #{output_dir}")
+  end
+end

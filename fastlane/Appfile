@@ -1,0 +1,5 @@
+app_identifier("${BUNDLE_ID}") # reads from environment or GitHub secret BUNDLE_ID
+apple_id("") # optional: set APPLE_ID env or fill here
+
+# You can provide team_id or team_name here if desired
+# team_id("")

@@ -19,71 +19,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Ruby (fastlane optional)
+      - name: Set up Ruby (fastlane)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
 
-      # Import certificate (P12) into the macOS runner keychain.
-      # Provide P12_BASE64 and P12_PASSWORD as repository secrets (see README below).
-      - name: Import code signing cert (p12)
-        if: ${{ secrets.P12_BASE64 && secrets.P12_PASSWORD }}
-        uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-base64: ${{ secrets.P12_BASE64 }}
-          p12-password: ${{ secrets.P12_PASSWORD }}
-
-      # Import provisioning profile
-      - name: Import provisioning profile
-        if: ${{ secrets.PROFILE_BASE64 }}
-        uses: apple-actions/import-provisioning-profile@v1
-        with:
-          provisioning-profile-base64: ${{ secrets.PROFILE_BASE64 }}
-
-      - name: Prepare ExportOptions.plist
+      - name: Install bundler and fastlane
         run: |
-          cat > ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>${{ env.EXPORT_METHOD || 'development' }}</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>compileBitcode</key>
-            <false/>
-            <key>stripSwiftSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
-
-      - name: Build Xcode archive
-        env:
-          # Provide WORKSPACE/PROJECT/Scheme via secrets or edit below
-          WORKSPACE: ${{ secrets.XCODE_WORKSPACE }}
-          PROJECT: ${{ secrets.XCODE_PROJECT }}
-          SCHEME: ${{ secrets.XCODE_SCHEME || 'SailTact' }}
-        run: |
-          set -o pipefail
-          mkdir -p build
-          # NOTE: Modify the xcodebuild command below if you use an .xcworkspace or .xcodeproj
-          if [ -n "$WORKSPACE" ]; then
-            echo "Building workspace: $WORKSPACE scheme: $SCHEME"
-            xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
-          elif [ -n "$PROJECT" ]; then
-            echo "Building project: $PROJECT scheme: $SCHEME"
-            xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
+          gem install bundler --conservative
+          bundle config set --local path vendor/bundle || true
+          if [ -f fastlane/Gemfile ]; then
+            bundle install --jobs 4 --retry 3
           else
-            echo "No WORKSPACE or PROJECT provided. Attempting to build scheme '$SCHEME' via xcodebuild -scheme"
-            xcodebuild -scheme "$SCHEME" -configuration Release -archivePath "$PWD/build/$SCHEME.xcarchive" clean archive | xcpretty || true
+            gem install fastlane -v "latest"
           fi
 
-      - name: Export .ipa
+      - name: Run fastlane CI lane
+        env:
+          # Required secrets expected to be configured in GitHub
+          P12_BASE64: ${{ secrets.P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.PROFILE_BASE64 }}
+          BUNDLE_ID: ${{ secrets.BUNDLE_ID }}
+          XCODE_WORKSPACE: ${{ secrets.XCODE_WORKSPACE }}
+          XCODE_PROJECT: ${{ secrets.XCODE_PROJECT }}
+          XCODE_SCHEME: ${{ secrets.XCODE_SCHEME }}
+          EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }}
         run: |
-          mkdir -p out
-          xcodebuild -exportArchive -archivePath "$PWD/build/${{ secrets.XCODE_SCHEME || 'SailTact' }}.xcarchive" -exportOptionsPlist ExportOptions.plist -exportPath "$PWD/out" | xcpretty || true
+          set -o pipefail
+          if [ -f Gemfile ]; then
+            bundle exec fastlane ci
+          else
+            fastlane ci
+          fi
 
       - name: Upload artifact (.ipa)
         uses: actions/upload-artifact@v4
