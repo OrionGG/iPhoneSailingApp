@@ -20,14 +20,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Import code signing cert (p12)
-        if: ${{ secrets.P12_BASE64 && secrets.P12_PASSWORD }}
+        if: secrets.P12_BASE64 != '' && secrets.P12_PASSWORD != ''
         uses: apple-actions/import-codesign-certs@v1
         with:
           p12-base64: ${{ secrets.P12_BASE64 }}
           p12-password: ${{ secrets.P12_PASSWORD }}
 
       - name: Import provisioning profile
-        if: ${{ secrets.PROFILE_BASE64 }}
+        if: secrets.PROFILE_BASE64 != ''
         uses: apple-actions/import-provisioning-profile@v1
         with:
           provisioning-profile-base64: ${{ secrets.PROFILE_BASE64 }}
