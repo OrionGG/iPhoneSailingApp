@@ -21,7 +21,8 @@ platform :ios do
       File.open(p12_path, 'wb') do |f|
         f.write(Base64.decode64(ENV['P12_BASE64']))
       end
-      import_certificate(p12_path: p12_path, p12_password: ENV['P12_PASSWORD'])
+      # import_certificate expects :certificate_path and :certificate_password
+      import_certificate(certificate_path: p12_path, certificate_password: ENV['P12_PASSWORD'])
     else
       UI.message("No P12 provided via P12_BASE64 / P12_PASSWORD; skipping import")
     end
