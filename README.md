@@ -35,8 +35,15 @@ Angle utilities in `VMGCalculator.swift`:
 - `smallestSignedAngleDifference(from:to:)` yields the signed difference in degrees in [-180, 180].
 
 Predicted alternative tack/jibe:
-- altHeading = normalize(2 * TWD - heading)
-- altVMG = SOG * cos(angleBetween(altHeading, TWD))
+Predicted alternative tack/jibe:
+The app evaluates a realistic candidate heading the helmsman will adopt after switching tacks.
+
+- Candidate altHeading is computed by rotating the CURRENT HEADING by a configurable "turn angle" (default 90°):
+	altHeading = normalizeDegrees360(heading + turnSign * preferredTurnAngle)
+	where turnSign = +1 when switching from starboard->port and -1 when switching from port->starboard (i.e., direction depends on current tack).
+- altVMG = predictedSOG * cos(angleBetween(altHeading, TWD))
+
+predictedSOG is looked up from the per-tack SOGHistory for the altTWA bin on the opposite tack; if no history exists, current SOG is used as a conservative fallback.
 
 If altVMG > currentVMG + threshold, the app recommends a tack/jibe.
 
@@ -71,6 +78,8 @@ The app exposes two settings so you can tune learning aggressiveness at runtime:
 
 - TWA bin width (degrees) — controls the angular resolution of the histogram (default 5°).
 - Max samples per bin — controls how much recent data is retained per bin/tack (default 50).
+
+- Preferred turn angle — how much the boat heading changes when switching tack (default 90°). This is independent of the wind angle and models the helmsman's typical steering change during a tack/jibe.
 
 Adjust these from the in-app Settings sheet under "Learning (SOG history)".
 

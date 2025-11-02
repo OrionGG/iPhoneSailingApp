@@ -17,9 +17,13 @@ struct ContentView: View {
     @State private var evalInterval: TimeInterval = 30
     @State private var alertsEnabled: Bool = false
     @State private var showSettings = false
+    @State private var twaPositiveStarboard = true
     @State private var showRecommendation: String? = nil
     @State private var voiceAnnounce = false
-    @State private var preferredTackAngle_deg: Double = 45.0
+    // The angle by which heading will change when tacking/jibing.
+    // Default 90°: switching tack rotates heading by ±90° relative to current heading.
+    // Positive value means magnitude of the change; sign/direction depends on current tack.
+    @State private var preferredTurnAngle_deg: Double = 90.0
 
     @State private var timerCancellable: AnyCancellable?
     @State private var lastDecisionTime: Date? = nil
@@ -33,8 +37,11 @@ struct ContentView: View {
             // need current boat heading
             guard let heading = locationManager.status.heading_deg ?? locationManager.status.cog_deg else { return nil }
             guard let twa = Double(twaInputStr) else { return nil }
-            // TWA: relative to bow, positive to starboard (right) conventionally; assume input uses -180..180
-            let twd = VMGCalculator.normalizeDegrees360(heading + twa)
+            // TWA: relative to bow. User can choose sign convention in Settings.
+            // If twaPositiveStarboard == true, positive TWA means wind to starboard (right), so TWD = heading + TWA.
+            // If false, positive TWA means wind to port (left), so TWD = heading - TWA.
+            let raw = twaPositiveStarboard ? (heading + twa) : (heading - twa)
+            let twd = VMGCalculator.normalizeDegrees360(raw)
             return twd
         } else {
             guard let v = Double(twdInputStr) else { return nil }
@@ -159,9 +166,10 @@ struct ContentView: View {
                     threshold: $threshold_mps,
                     interval: $evalInterval,
                     voiceAnnounce: $voiceAnnounce,
-                    preferredTackAngle: $preferredTackAngle_deg,
+                    preferredTurnAngle: $preferredTurnAngle_deg,
                     binWidthDeg: Binding(get: { self.sogHistory.binWidthDeg }, set: { self.sogHistory.binWidthDeg = $0 }),
-                    maxSamplesPerBin: Binding(get: { self.sogHistory.maxSamplesPerBin }, set: { self.sogHistory.maxSamplesPerBin = $0 })
+                    maxSamplesPerBin: Binding(get: { self.sogHistory.maxSamplesPerBin }, set: { self.sogHistory.maxSamplesPerBin = $0 }),
+                    twaPositiveStarboard: $twaPositiveStarboard
                 )
             }
             .onChange(of: alertsEnabled) { enabled in
@@ -218,19 +226,22 @@ struct ContentView: View {
         guard let twd = twdDeg else { return }
         let currentVMG = VMGCalculator.vmg(sog_mps: sog_mps, headingDeg: heading, twdDeg: twd)
 
-        // Determine alt heading (mirror across wind)
-        let (altHeading, _) = VMGCalculator.predictedAltVMG(sog_mps: sog_mps, headingDeg: heading, twdDeg: twd)
+    // Determine alt heading using the configured turn angle when switching tacks.
+    // The user configures the magnitude of the heading change when tacking (default 90°).
+    // We compute the candidate altHeading by rotating the CURRENT HEADING by ±preferredTurnAngle
+    // depending on the current tack. This models how the helmsman actually changes course.
+    // If currently on port tack, switching to starboard reduces heading by turnAngle (example: 180 -> 90).
+    // If currently on starboard tack, switching to port increases heading by turnAngle (example: 300 -> 30).
+    let signed = VMGCalculator.smallestSignedAngleDifference(from: heading, to: twd)
+    let currentTack: TackSide = signed > 0 ? .port : .starboard
+    let turnSign: Double = (currentTack == .port) ? -1.0 : 1.0
+    let altHeading = VMGCalculator.normalizeDegrees360(heading + turnSign * preferredTurnAngle_deg)
 
         // Compute alt TWA magnitude (degrees)
         let altTwa = abs(VMGCalculator.smallestSignedAngleDifference(from: altHeading, to: twd))
 
-        // Determine current tack side (positive signed angle -> wind on port side)
-        let signed = VMGCalculator.smallestSignedAngleDifference(from: heading, to: twd)
-        let currentTack: TackSide = signed > 0 ? .port : .starboard
-        let oppositeTack: TackSide = currentTack == .port ? .starboard : .port
-
-        // Lookup predicted SOG for altTwa on the opposite tack from history
-        let predictedSOG = sogHistory.averageSpeed(forTWADegrees: altTwa, tack: oppositeTack) ?? sog_mps
+    // Lookup predicted SOG for altTwa on the opposite tack from history
+    let predictedSOG = sogHistory.averageSpeed(forTWADegrees: altTwa, tack: oppositeTack) ?? sog_mps
 
         // Compute predicted alt VMG using the predicted SOG
         let altVMG = VMGCalculator.vmg(sog_mps: predictedSOG, headingDeg: altHeading, twdDeg: twd)
@@ -273,9 +284,10 @@ struct SettingsView: View {
     @Binding var threshold: Double
     @Binding var interval: TimeInterval
     @Binding var voiceAnnounce: Bool
-    @Binding var preferredTackAngle: Double
+    @Binding var preferredTurnAngle: Double
     @Binding var binWidthDeg: Double
     @Binding var maxSamplesPerBin: Int
+    @Binding var twaPositiveStarboard: Bool
 
     var body: some View {
         NavigationView {
@@ -300,11 +312,12 @@ struct SettingsView: View {
 
                 Section(header: Text("Tack preferences")) {
                     HStack {
-                        Text("Preferred tack angle")
+                        Text("Preferred turn angle")
                         Spacer()
-                        Text(String(format: "%.0f°", preferredTackAngle))
+                        Text(String(format: "%.0f°", preferredTurnAngle))
                     }
-                    Slider(value: $preferredTackAngle, in: 10...90, step: 1)
+                    // Turn angle is how much the heading changes when switching tack (default 90°)
+                    Slider(value: $preferredTurnAngle, in: 10...180, step: 1)
                 }
                 Section(header: Text("Learning (SOG history)")) {
                     HStack {
@@ -322,6 +335,21 @@ struct SettingsView: View {
                     Stepper(value: $maxSamplesPerBin, in: 5...500, step: 5) {
                         EmptyView()
                     }
+                }
+                Section(header: Text("TWA sign convention")) {
+                    Toggle(isOn: $twaPositiveStarboard) {
+                        Text("TWA positive to starboard (right)")
+                    }
+                    Button(action: {
+                        // Quick calibration helper: flip to the opposite convention
+                        twaPositiveStarboard.toggle()
+                    }) {
+                        Text("Flip convention")
+                    }
+                    .foregroundColor(.accentColor)
+                    Text("If your instrument/TWA source uses the opposite sign, flip this.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
             }
             .navigationTitle("Settings")
